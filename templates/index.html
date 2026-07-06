@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Optical Character Recognition</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
+    <!-- Elegant Font Pairing -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=Pinyon+Script&family=Playfair+Display:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #f4f4f5;
+            --surface: #ffffff;
+            --text-main: #18181b;
+            --text-muted: #71717a;
+            --border-color: #e4e4e7;
+            --accent: #18181b;
+            --accent-hover: #3f3f46;
+            --canvas-bg: #ffffff;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 3rem;
+            animation: fadeIn 0.8s ease-out;
+        }
+
+        .header h1 {
+            font-family: 'Pinyon Script', cursive;
+            font-size: 4rem;
+            font-weight: 400;
+            color: var(--text-main);
+            margin-bottom: 0.25rem;
+            letter-spacing: 1px;
+        }
+
+        .header p {
+            font-family: 'Playfair Display', serif;
+            color: var(--text-muted);
+            font-size: 1.1rem;
+            font-style: italic;
+            letter-spacing: 0.5px;
+        }
+
+        .main-container {
+            display: flex;
+            flex-direction: row;
+            gap: 3rem;
+            background: var(--surface);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 3rem;
+            box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.08);
+            animation: slideUp 0.8s ease-out;
+            max-width: 900px;
+            width: 100%;
+        }
+
+        @media (max-width: 768px) {
+            .main-container {
+                flex-direction: column;
+                padding: 2rem;
+                gap: 2rem;
+            }
+        }
+
+        .left-panel, .right-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .panel-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            color: var(--text-main);
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 0.75rem;
+        }
+
+        .brush-settings {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1.5rem;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .brush-settings input[type=range] {
+            accent-color: var(--accent);
+            width: 60%;
+            cursor: pointer;
+            height: 4px;
+            background: var(--border-color);
+            border-radius: 2px;
+            -webkit-appearance: none;
+        }
+
+        .brush-settings input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 12px;
+            height: 12px;
+            background: var(--accent);
+            border-radius: 50%;
+        }
+
+        .canvas-wrapper {
+            background: var(--canvas-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            margin-bottom: 2rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            overflow: hidden;
+            transition: border-color 0.3s ease;
+        }
+
+        .canvas-wrapper:hover {
+            border-color: var(--text-muted);
+        }
+
+        .controls {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+        }
+
+        button {
+            padding: 0.85rem 1.5rem;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .btn-predict {
+            background: var(--accent);
+            color: white;
+            border: 1px solid var(--accent);
+            flex: 2;
+        }
+
+        .btn-predict:hover {
+            background: var(--accent-hover);
+            border-color: var(--accent-hover);
+        }
+
+        .btn-clear {
+            background: transparent;
+            color: var(--text-main);
+            border: 1px solid var(--border-color);
+            flex: 1;
+        }
+
+        .btn-clear:hover {
+            background: var(--bg-color);
+            border-color: var(--text-muted);
+        }
+
+        .predictions-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            flex-grow: 1;
+        }
+
+        .prediction-item {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .prediction-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+        }
+
+        .prediction-letter {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.75rem;
+            font-weight: 600;
+            color: var(--text-main);
+            line-height: 1;
+        }
+
+        .prediction-letter.top-pred {
+            font-size: 2.25rem;
+        }
+
+        .prediction-prob {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            font-weight: 400;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .progress-bar-bg {
+            width: 100%;
+            height: 2px;
+            background: var(--border-color);
+            border-radius: 1px;
+            overflow: hidden;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: var(--accent);
+            width: 0%;
+            transition: width 1s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        
+        .empty-state {
+            text-align: center;
+            color: var(--text-muted);
+            padding: 3rem 1rem;
+            font-size: 0.95rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+        }
+
+        .empty-state span {
+            margin-top: 0.5rem;
+            font-size: 0.85rem;
+            opacity: 0.7;
+        }
+
+        .loading-overlay {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(255, 255, 255, 0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+            backdrop-filter: blur(2px);
+        }
+
+        .spinner {
+            width: 30px;
+            height: 30px;
+            border: 2px solid var(--border-color);
+            border-left-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Scriptura</h1>
+        <p>Optical Character Recognition Analysis</p>
+    </div>
+
+    <div class="main-container">
+        <div class="left-panel">
+            <h2 class="panel-title">Input Canvas</h2>
+            <div class="brush-settings">
+                <span>Stroke Weight</span>
+                <input type="range" id="brush-size" min="5" max="40" value="12">
+            </div>
+            <div class="canvas-wrapper">
+                <canvas id="canvas" width="280" height="280"></canvas>
+                <div class="loading-overlay" id="loading">
+                    <div class="spinner"></div>
+                </div>
+            </div>
+            <div class="controls">
+                <button class="btn-predict" onclick="predictLetter()">Analyze</button>
+                <button class="btn-clear" onclick="clearCanvas()">Clear</button>
+            </div>
+        </div>
+
+        <div class="right-panel">
+            <h2 class="panel-title">Analysis Results</h2>
+            <div class="predictions-list" id="predictions-list">
+                <div class="empty-state">
+                    Awaiting input sequence...
+                    <span>Draw a single uppercase letter in the canvas to begin.</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = new fabric.Canvas('canvas', {
+            isDrawingMode: true,
+            backgroundColor: '#ffffff'
+        });
+        
+        // Setting up the brush for a precise, ink-like feel
+        canvas.freeDrawingBrush = new fabric.PencilBrush(canvas);
+        canvas.freeDrawingBrush.width = 12;
+        canvas.freeDrawingBrush.color = '#18181b';
+        canvas.freeDrawingBrush.decimate = 2;
+
+        // Brush size control
+        document.getElementById('brush-size').addEventListener('input', function(e) {
+            canvas.freeDrawingBrush.width = parseInt(e.target.value, 10);
+        });
+
+        function predictLetter() {
+            if (canvas.getObjects().length === 0) {
+                const wrapper = document.querySelector('.canvas-wrapper');
+                wrapper.style.transform = 'translateX(-5px)';
+                setTimeout(() => wrapper.style.transform = 'translateX(5px)', 100);
+                setTimeout(() => wrapper.style.transform = 'translateX(-5px)', 200);
+                setTimeout(() => wrapper.style.transform = 'translateX(0)', 300);
+                return;
+            }
+
+            const loading = document.getElementById('loading');
+            loading.style.display = 'flex';
+
+            const dataURL = canvas.toDataURL({
+                format: 'png',
+                quality: 1.0,
+                multiplier: 1
+            });
+
+            // Standard Fetch API call
+            fetch('/predict', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ image: dataURL })
+            })
+            .then(response => {
+                if (!response.ok) throw new Error('Network response was not ok');
+                return response.json();
+            })
+            .then(data => {
+                loading.style.display = 'none';
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                renderPredictions(data.predictions);
+            })
+            .catch(error => {
+                loading.style.display = 'none';
+                document.getElementById('predictions-list').innerHTML = 
+                    `<div class="empty-state" style="color: #ef4444;">
+                        Analysis failed.
+                        <span>${error.message || 'Server connection could not be established.'}</span>
+                    </div>`;
+            });
+        }
+
+        function renderPredictions(predictions) {
+            const container = document.getElementById('predictions-list');
+            container.innerHTML = ''; 
+
+            predictions.forEach((pred, index) => {
+                const isTop = index === 0;
+                const probPercent = (pred.probability * 100).toFixed(1);
+                
+                const item = document.createElement('div');
+                item.className = 'prediction-item';
+                item.style.opacity = '0';
+                item.style.transform = 'translateY(10px)';
+                
+                item.innerHTML = `
+                    <div class="prediction-info">
+                        <span class="prediction-letter ${isTop ? 'top-pred' : ''}">${pred.letter}</span>
+                        <span class="prediction-prob">${probPercent}% Match</span>
+                    </div>
+                    <div class="progress-bar-bg">
+                        <div class="progress-bar-fill" style="width: 0%"></div>
+                    </div>
+                `;
+                
+                container.appendChild(item);
+
+                // Subtle staggered entrance animation
+                setTimeout(() => {
+                    item.style.transition = 'all 0.4s ease';
+                    item.style.opacity = '1';
+                    item.style.transform = 'translateY(0)';
+                    
+                    setTimeout(() => {
+                        item.querySelector('.progress-bar-fill').style.width = `${probPercent}%`;
+                    }, 50);
+                }, 75 * index);
+            });
+        }
+
+        function clearCanvas() {
+            canvas.clear();
+            canvas.backgroundColor = '#ffffff';
+            canvas.renderAll();
+            
+            const container = document.getElementById('predictions-list');
+            container.innerHTML = `
+                <div class="empty-state">
+                    Awaiting input sequence...
+                    <span>Draw a single uppercase letter in the canvas to begin.</span>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>
