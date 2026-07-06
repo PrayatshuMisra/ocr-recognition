@@ -13,43 +13,40 @@ import matplotlib.pyplot as plt
 app = Flask(__name__)
 
 
-# Load the model (same as before)
-class SimpleCNN(torch.nn.Module):
+class ImprovedCNN(torch.nn.Module):
     def __init__(self):
-        super(SimpleCNN, self).__init__()
-        # Convolutional layers
-        self.conv1 = nn.Conv2d(1, 32, kernel_size=3, stride=1, padding=1)  # Output: (32, 28, 28)
-        self.conv2 = nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1)  # Output: (64, 28, 28)
-        self.conv3 = nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1) # Output: (128, 28, 28)
-        # MaxPooling and Dropout
-        self.pool = nn.MaxPool2d(2, 2)  # Pooling layer
-        self.dropout = nn.Dropout(0.5)  # Dropout for regularization
-
-        # Fully connected layers
-        self.fc1 = nn.Linear(128*3*3, 512)  # Adjusted based on input size after pooling
-        self.fc2 = nn.Linear(512, 27)  # 27 classes for EMNIST (letters)
+        super(ImprovedCNN, self).__init__()
+        self.conv1 = nn.Conv2d(1, 32, kernel_size=3, stride=1, padding=1)
+        self.bn1 = nn.BatchNorm2d(32)
+        self.conv2 = nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1)
+        self.bn2 = nn.BatchNorm2d(64)
+        self.conv3 = nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1)
+        self.bn3 = nn.BatchNorm2d(128)
+        
+        self.pool = nn.MaxPool2d(2, 2)
+        self.dropout_conv = nn.Dropout(0.25)
+        self.dropout_fc = nn.Dropout(0.5)
+        
+        self.fc1 = nn.Linear(128*3*3, 512)
+        self.bn4 = nn.BatchNorm1d(512)
+        self.fc2 = nn.Linear(512, 27) 
 
     def forward(self, x):
-        # Convolutional layers with ReLU and MaxPooling
-        x = F.relu(self.conv1(x))
-        x = self.pool(x)
-        x = F.relu(self.conv2(x))
-        x = self.pool(x)
-        x = F.relu(self.conv3(x))
-        x = self.pool(x)
+        x = self.pool(torch.nn.functional.relu(self.bn1(self.conv1(x))))
+        x = self.pool(torch.nn.functional.relu(self.bn2(self.conv2(x))))
+        x = self.pool(torch.nn.functional.relu(self.bn3(self.conv3(x))))
+        x = self.dropout_conv(x)
         
-        # Flatten the output of convolutional layers
-        x = x.view(x.size(0), -1)  # Shape: (batch_size, 128*3*3)
+        x = x.view(x.size(0), -1)
         
-        # Fully connected layers with Dropout
-        x = F.relu(self.fc1(x))
-        x = self.dropout(x)  # Apply dropout
+        x = torch.nn.functional.relu(self.bn4(self.fc1(x)))
+        x = self.dropout_fc(x)
         x = self.fc2(x)
         return x
 
 import os
-model = SimpleCNN()
-model_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'improved_pytorch_ocr.pth')
+model = ImprovedCNN()
+model_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'improved_ocr.pth')
 model.load_state_dict(torch.load(model_path, map_location=torch.device('cpu'), weights_only=True))
 model.eval()
 

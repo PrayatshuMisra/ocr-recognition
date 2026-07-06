@@ -2,7 +2,7 @@
 *.pth
 *.pt
 *.ckpt
-!improved_pytorch_ocr.pth
+!improved_ocr.pth
 
 # Python
 __pycache__/
