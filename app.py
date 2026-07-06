@@ -1,6 +1,7 @@
 import torch.nn as nn
 import torch
 import torch.nn.functional as F
+torch.set_num_threads(1) # CRITICAL: Limits PyTorch to 1 CPU thread to prevent OOM on Render Free Tier
 
 import torchvision.transforms as transforms
 from flask import Flask, request, jsonify, render_template
@@ -8,7 +9,6 @@ from PIL import Image, ImageOps
 import io
 import base64
 import numpy as np
-import matplotlib.pyplot as plt
 
 app = Flask(__name__)
 
